@@ -1,0 +1,94 @@
+---
+title: "[자료의 특징파악 - 탐색적 자료분석] 1. 단일변수 분석 (Univariate Analysis)"
+author: "20143311 김희수"
+date: '2019 9 11 '
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+
+
+A01 <- readxl::read_xlsx("임상데이터_분석용.xlsx")
+
+```
+
+## 01. 수술후 재발율과 재발까지의 경과시간
+
+```{r 01data}
+B01 <- A01$재발일자1 - A01$Opdate
+
+B03 <- B01[B01>0] %>%
+  as.integer()
+
+B03[is.na(B03)] <- 99999
+
+#01-1 기술통계
+sum(A01$재발여부,na.rm=T)/length(A01$재발여부) #재발율
+
+median(B06$수술후재발)
+
+#이상치제거 (1.5IQRANGE -381.25 ~ 1030.75)
+quantile(B03,0.25) - IQR(B03) * 1.5 #-381.25
+quantile(B03,0.75) + IQR(B03) * 1.5 #1030.75
+length(B03[B03>1030.75]) #이상치 31개
+
+boxplot(B03[B03<1030.75])
+
+B04 <- as.data.frame(B03[B03>0]) %>%
+  `colnames<-`("수술후재발")
+
+ggplot(B04,aes(x=수술후재발)) +
+  stat_ecdf(color = "skyblue",size=1.2) +
+  ylab("누적 재발률") +
+  xlab("수술후 경과시간(일)") +
+  coord_cartesian(xlim = c(0,1030.75),
+                  ylim = c(0,0.35))
+
+B06 <- as.data.frame(B03[B03>0&B03<1030.75]) %>%
+  `colnames<-`("수술후재발")
+PDF <- density(B06$수술후재발[B06$수술후재발>0])
+PDF2 <- data.frame(x=PDF$x,y=PDF$y)
+probs <- c(0,254)
+
+ggplot() +
+  geom_histogram(aes(x=수술후재발,y=..density..),B06,color = "black",fill = "skyblue",
+                 alpha = 0.2,binwidth = 40) +
+  geom_line(mapping = aes(x=x,y=y),data = PDF2,size=1.3,color="skyblue") +
+  geom_area(mapping = aes(x=ifelse(x<170&x>20,x,0),y=y),data = PDF2,fill="blue",alpha=0.4) +
+  ylab("재발률") +
+  xlab("수술후 경과시간(일)") +
+  coord_cartesian(ylim = c(0,0.0033),xlim = c(0,1035))
+
+length(B06[B06>50&B06<250])/length(B06$수술후재발)
+
+
+```
+
+## 02. 연령
+
+```{r 02data, echo=FALSE}
+A01$Age
+
+boxplot(A01$Age)
+hist(A01$Age,prob=T,
+     xlab = "연령",main = "연령 분포")
+
+D01 <- table(A01$Age) %>%
+  as.data.frame()
+
+ggplot(data = A01,mapping = aes(x=Age)) +
+  geom_histogram(color = "black",fill="skyblue",alpha = 0.4,binwidth = 2)
+
+mean(A01$Age)
+summary(A01$Age)
+var(A01$Age)
+
+length(A01$Age[A01$Age<30])/length(A01$Age)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

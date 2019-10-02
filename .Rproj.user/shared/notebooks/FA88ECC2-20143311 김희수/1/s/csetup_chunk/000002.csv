@@ -1,0 +1,34 @@
+"0","library(plyr)"
+"0","library(dplyr)"
+"2","Registered S3 method overwritten by 'dplyr':
+  method           from
+  print.rowwise_df     
+"
+"2","
+´ÙÀ½ÀÇ ÆÐÅ°Áö¸¦ ºÎÂøÇÕ´Ï´Ù: ¡®dplyr¡¯
+
+"
+"2","The following objects are masked from ¡®package:plyr¡¯:
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+
+"
+"2","The following objects are masked from ¡®package:stats¡¯:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ¡®package:base¡¯:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(ggplot2)"
+"2","Registered S3 methods overwritten by 'ggplot2':
+  method         from 
+  [.quosures     rlang
+  c.quosures     rlang
+  print.quosures rlang
+"
+"0","A01 <- readxl::read_xlsx(""ìž„ìƒë°ì´í„°_ë¶„ì„ìš©.xlsx"")"
+"0",""
