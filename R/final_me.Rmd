@@ -128,6 +128,47 @@ dongtan_tag_dst_evening <- dongtan_tag_aa[substr(dongtan_tag_dst_aa$X...최종�
   substr(dongtan_tag_dst_aa$X...최종하차일시...,9,10)=="18"|
   substr(dongtan_tag_dst_aa$X...최종하차일시...,9,10)=="19",]
 
+
+
+
+#동탄내 이동 태그기록
+dongtan_tag_ext <- data.frame()
+system.time(
+dongtan_tag_ext <- foreach (i=1:149,.combine = rbind) %dopar% {
+  a <- which(dongtan_tag_dst$X...승차역ID1...==dongtan_stop$이비카드정류장ID[i])
+  b <- dongtan_tag_dst[a,]
+  c <- which(dongtan_tag$X...승차역ID1...==dongtan_stop$이비카드정류장ID[i])
+  d <- dongtan_tag[c,]
+  e <- rbind(b,d)
+  unique(e)
+}
+)
+
+#동탄내 ext_morning
+dongtan_tag_ext_aa <- dongtan_tag[substr(dongtan_tag_ext$X...최종하차일시...,8,8)==2|
+  substr(dongtan_tag_ext$X...최종하차일시...,8,8)==3|
+  substr(dongtan_tag_ext$X...최종하차일시...,8,8)==4,]
+
+dongtan_tag_ext_evening <- dongtan_tag_ext_aa[substr(dongtan_tag_ext_aa$X...최종하차일시...,9,10)=="17"|
+  substr(dongtan_tag_ext_aa$X...최종하차일시...,9,10)=="18"|
+  substr(dongtan_tag_ext_aa$X...최종하차일시...,9,10)=="19",]
+
+dongtan_tag_ext_morning
+
+#동탄내 구간 morning
+move_total <- dongtan_tag_ext_evening[,c(37,48)] %>%
+  `colnames<-`(c("org","dst"))
+move_total<-move_total[nchar(move_total$org)>6&nchar(move_total$dst)>6,]
+
+move_total <- paste0(move_total$org,",",move_total$dst)
+trans_table<-as.data.frame(table(move_total))
+
+trans_table <- data.frame(org = substr(trans_table$move_total,1,7),
+                          dst = substr(trans_table$move_total,9,15),
+                          freq = trans_table$Freq)
+
+dongtan_tag_ext$
+
 ```
 
 ## 하차역
@@ -154,7 +195,7 @@ m_down_morning <- data.frame(table(dongtan_tag_aa_morning$X...최종하차역ID.
 m_down_morning$name <- NA
 
 system.time(
-m_down_name <- foreach (i=1:1427,.combine = rbind) %dopar% {
+m_down_name <- foreach (i=1:1429,.combine = rbind) %dopar% {
   a1 <- which(m_down_morning$Var1[i] == A2$이비카드정류장ID)
   ifelse(length(a1)>0,
          ifelse(length(A2$정류소명[a1])>0,
@@ -303,7 +344,7 @@ trans_table_fine1$start_lat<-as.numeric(trans_table_fine1$start_lat)
 t_t_fine <- trans_table_fine1[order(trans_table_fine1$freq,decreasing = T),]
 t_t_fine <- t_t_fine[1:100,]
 t_t_fine$freq<-t_t_fine$freq/204+1
-mapdeck( token = key, style = mapdeck_style("dark"), pitch = 25 ) %>%
+mapdeck( token = key, style = mapdeck_style("dark"), pitch = 15 ) %>%
 add_arc(
 data = t_t_fine
 , layer_id = "arc_layer"
@@ -311,8 +352,65 @@ data = t_t_fine
 , destination = c("end_lon", "end_lat")
 , stroke_from = "org"
 , stroke_to = "dst"
-, stroke_width = 1
+, stroke_width = 3
 )
+
+#전체기록
+alltag<-data.frame(org=A1$X...승차역ID1...,dst=A1$X...최종하차역ID...)
+
+alltag_over6 <- alltag[nchar(alltag$org)>6&nchar(alltag$dst)>6,]
+
+alltag_over6 <- paste0(alltag_over6$org,",",alltag_over6$dst)
+trans_alltag <- as.data.frame(table(alltag_over6))
+
+trans_alltag <- data.frame(org = substr(trans_alltag$alltag_over6,1,7),
+                           dst = substr(trans_alltag$alltag_over6,9,15),
+                           freq = trans_alltag$Freq)
+trans_alltag <- trans_alltag[-263030,]
+
+trans_alltag <- trans_alltag[order(trans_alltag$freq,decreasing = T),] %>%
+  `rownames<-`(1:263029)
+
+trans_alltag_a <- trans_alltag[1:500,]
+
+system.time(
+start_location <-foreach(i=1:500,.combine = rbind) %dopar%{
+  a <- which(trans_alltag_a[i,1] == A2$이비카드정류장ID)
+  b <- A2[a,9:10]
+  ifelse(nrow(b)>0,
+         c <- b,
+         c <- data.frame(WGS84위도="미등록",WGS84경도="미등록"))
+  c
+})
+
+system.time(
+end_location <-foreach(i=1:500,.combine = rbind) %dopar%{
+a <- which(trans_alltag_a[i,2] == A2$이비카드정류장ID)
+b <- A2[a,9:10]
+ifelse(nrow(b)>0,
+       c <- b,
+       c <- data.frame(WGS84위도="미등록",WGS84경도="미등록"))
+c
+})
+
+table_alltag <- cbind(trans_alltag_a,start_location,end_location) %>%
+  `colnames<-`(c("org","dst","freq","start_lat","start_lon","end_lat","end_lon"))
+
+table_alltag <- table_alltag[!table_alltag$end_lat=="미등록",]
+
+table_alltag <- as.data.frame(apply(table_alltag, 2, as.numeric))
+
+mapdeck( token = key, style = mapdeck_style("dark"), pitch = 25 ) %>%
+add_arc(
+data = table_alltag
+, layer_id = "arc_layer"
+, origin = c("start_lon", "start_lat")
+, destination = c("end_lon", "end_lat")
+, stroke_from = "org"
+, stroke_to = "dst"
+, stroke_width = 3
+)
+
 
 
 
@@ -321,8 +419,7 @@ data = t_t_fine
 ##구간빈도수
 
 ```{r}
-#m_down_morning
-move_total <- dongtan_tag_dst_morning[,c(37,48)] %>%
+move_total <- dongtan_tag_aa_morning[,c(37,48)] %>%
   `colnames<-`(c("org","dst"))
 move_total<-move_total[nchar(move_total$org)>6&nchar(move_total$dst)>6,]
 
@@ -333,16 +430,36 @@ trans_table <- data.frame(org = substr(trans_table$move_total,1,7),
                           dst = substr(trans_table$move_total,9,15),
                           freq = trans_table$Freq)
 
+trans_table<-trans_table[order(trans_table$freq,decreasing=T),] %>%
+  `rownames<-`(1:3949)
+
+finally_we_find <- trans_table[1:2,]
+
+
+
 
 ```
 
-##apriori
+##굴곡도
 
 ```{r}
-trans_table_fine1
+#굴곡도 custom function
+d_length <- function(a,b,c,d){
+  e <- 6371 #earth_radius
+  
+  f
+}
+
+d_length(37.20403,127.0713,37.22472,127.0742)
 
 
+```
 
+##geojson
+
+```{r}
+
+geo_sd <- geojsonR::FROM_GeoJson("data/PJT001_moc_link_2018.geojson")
 
 
 ```
