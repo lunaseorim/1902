@@ -1,0 +1,94 @@
+---
+title: "Untitled"
+author: "aa"
+date: '2019 11 19 '
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(survival)
+library(survminer)
+library(caret)
+```
+
+## data
+
+```{r data}
+dat<-lung %>%
+  na.omit() %>%
+  data.frame()
+```
+
+##ddd
+
+```{r}
+set.seed(1119)
+q1<-dat[sample(nrow(dat))[1:55],]
+q2<-dat[sample(nrow(dat))[56:111],]
+q3<-dat[sample(nrow(dat))[112:167],]
+train1 <- rbind(q1,q2)
+test1 <- q3
+train2 <- rbind(q2,q3)
+test2 <- q1
+train3 <- rbind(q1,q3)
+test3 <- q2
+```
+
+## MODEL.1
+
+```{r}
+#1st
+tet <- NULL
+for (i in 4:10) {
+  a <- coxph(Surv(time,status==2)~train1[,i],data = train1)
+  tet <- rbind(tet,data.frame(value = summary(a)$coefficients[5],name = colnames(train1)[i]))
+}
+
+#2nd
+for (i in c(4,6:10)) {
+  a <- coxph(Surv(time,status==2)~sex+train1[,i],data = train1)
+  print(paste0("i=",colnames(train1)[i]))
+  print(summary(a))
+}
+
+#3rd
+for (i in c(4,6,7,9,10)) {
+  a <- coxph(Surv(time,status==2)~sex+pat.karno+train1[,i],data = train1)
+  print(paste0("i=",colnames(train1)[i]))
+  print(summary(a))
+}
+```
+
+## Cox regression
+
+```{r pressure, echo=FALSE}
+full_model <- coxph(Surv(time,status==2)~.,data = dat)
+summary(full_model)
+pcox_step <-step(full_model,direction = "both",trace = 0)
+pcox_step
+```
+
+##그래프
+
+```{r}
+ggsurvplot(survfit(Surv(time,status==2)~.,data=dat),
+           palette = "#2E9FDF",
+           risk.table = "nrisk_cumevents",
+           xlab = "Time(days)",
+           cumevents = TRUE,
+           linetype = 1,
+           tables.height = 0.2,
+           surv.median.line = "hv",
+           legend = "none")
+```
+
+##propotional hazard 가정
+`Proportional hazard 가정 (H0:비례위험 가정을 만족한다.)`
+
+```{r}
+cox.zph(pcox_step)
+#p-value가 0.05이상이므로 H0 기각불가
+```
