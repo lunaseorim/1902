@@ -1,6 +1,6 @@
 ---
-title: "Untitled"
-author: "aa"
+title: "머신러닝 - 생존분석 : Cox 비례위험모형"
+author: "12조"
 date: '2019 11 19 '
 output: html_document
 ---
@@ -12,6 +12,7 @@ library(ggplot2)
 library(survival)
 library(survminer)
 library(caret)
+library(survAUC)
 ```
 
 ## data
@@ -22,7 +23,7 @@ dat<-lung %>%
   data.frame()
 ```
 
-##ddd
+##Cross Validation
 
 ```{r}
 set.seed(1119)
@@ -37,52 +38,61 @@ train3 <- rbind(q1,q3)
 test3 <- q2
 ```
 
-## MODEL.1
+## MODEL1(q1+q2)
 
 ```{r}
-#1st
-tet <- NULL
+##1st : 하나가지고!
+asys_1st <- NULL
 for (i in 4:10) {
-  a <- coxph(Surv(time,status==2)~train1[,i],data = train1)
-  tet <- rbind(tet,data.frame(value = summary(a)$coefficients[5],name = colnames(train1)[i]))
+  a <- coxph(Surv(time,status==2)~dat[,i],data = dat)
+  b <- rbind(asys_1st,
+             data.frame(name = colnames(dat)[i],
+                        coef = summary(a)$coefficients[1],
+                        pvalue = summary(a)$coefficients[5]
+                        )
+             )
+  asys_1st <- b
 }
 
-#2nd
-for (i in c(4,6:10)) {
-  a <- coxph(Surv(time,status==2)~sex+train1[,i],data = train1)
-  print(paste0("i=",colnames(train1)[i]))
-  print(summary(a))
+##2nd : 
+coxph(Surv(time,status==2)~ph.ecog+pat.karno,data = dat)
+
+asys_2nd <- NULL
+for (i in c(4,5,7,9,10)) {
+  a <- coxph(Surv(time,status==2)~ph.ecog+pat.karno+dat[,i],data = dat)
+  b <- rbind(asys_2nd,
+             data.frame(name = colnames(dat)[i],
+                        coef = summary(a)$coefficients[3,1],
+                        pvalue = summary(a)$coefficients[3,5]
+                        )
+             )
+  asys_2nd <- b
 }
 
-#3rd
-for (i in c(4,6,7,9,10)) {
-  a <- coxph(Surv(time,status==2)~sex+pat.karno+train1[,i],data = train1)
-  print(paste0("i=",colnames(train1)[i]))
-  print(summary(a))
+##3rd : ph.ecog, ph.karno, sex
+coxph(Surv(time,status==2)~ph.ecog+pat.karno+sex,data = dat)
+
+asys_3rd <- NULL
+for (i in c(4,7,9,10)) {
+  a <- coxph(Surv(time,status==2)~ph.ecog+pat.karno+sex+dat[,i],data = dat)
+  b <- rbind(asys_3rd,
+             data.frame(name = colnames(dat)[i],
+                        coef = summary(a)$coefficients[4,1],
+                        pvalue = summary(a)$coefficients[4,5]
+                        )
+             )
+  asys_3rd <- b
 }
-```
 
-## Cox regression
-
-```{r pressure, echo=FALSE}
-full_model <- coxph(Surv(time,status==2)~.,data = dat)
-summary(full_model)
-pcox_step <-step(full_model,direction = "both",trace = 0)
-pcox_step
 ```
 
 ##그래프
 
 ```{r}
-ggsurvplot(survfit(Surv(time,status==2)~.,data=dat),
+ggsurvplot(survfit(coxph(Surv(time,status==2)~ph.ecog+pat.karno+sex,data = dat)),data=dat,
            palette = "#2E9FDF",
-           risk.table = "nrisk_cumevents",
-           xlab = "Time(days)",
-           cumevents = TRUE,
-           linetype = 1,
-           tables.height = 0.2,
-           surv.median.line = "hv",
-           legend = "none")
+           ggtheme = theme_minimal(),
+           xlab = "Time(days)")
 ```
 
 ##propotional hazard 가정
@@ -91,4 +101,26 @@ ggsurvplot(survfit(Surv(time,status==2)~.,data=dat),
 ```{r}
 cox.zph(pcox_step)
 #p-value가 0.05이상이므로 H0 기각불가
+```
+
+##임시
+
+```{r}
+#모델링
+full_model <- coxph(Surv(time,status==2)~.-inst,data = train3)
+summary(full_model)
+
+#ROC
+pred <- predict(pcox_step)
+pred_n <- predict(pcox_step,newdata = test2)
+surv1 <- Surv(train1$time,train1$status)
+surv1_n <- Surv(test1$time,test1$status)
+
+AUC1 <- AUC.cd(surv1,surv1_n,pred,pred_n,seq(10,500,10))
+plot(AUC1)
+abline(h = 0.5)
+#Gonen and Heller’s Concordance Index for Cox proportional hazards models
+GHCI(pred_n)
+
+
 ```
